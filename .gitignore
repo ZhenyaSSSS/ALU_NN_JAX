@@ -20,3 +20,4 @@ checkpoint_*.msgpack
 *.swp
 *.swo
 .jax/
+ALU_NN_JAX_full_code.txt
