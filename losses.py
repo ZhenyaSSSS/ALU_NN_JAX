@@ -32,8 +32,9 @@ def tpu_mmd_imq_loss(z: jnp.ndarray, key: jax.Array) -> jnp.ndarray:
     return jnp.maximum(1e-6, mmd2)
 
 def compute_losses(logits_clean, logits_solver, target_bits, pred_z, enc_Target, swd_key):
+    logits_clean = logits_clean.astype(jnp.float32)
+    logits_solver = logits_solver.astype(jnp.float32)
     target_f32 = target_bits.astype(jnp.float32)
-    
     bce_clean = optax.sigmoid_binary_cross_entropy(logits_clean, target_f32)
     bce_solver = optax.sigmoid_binary_cross_entropy(logits_solver, target_f32)
     

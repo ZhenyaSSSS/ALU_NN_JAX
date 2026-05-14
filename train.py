@@ -9,7 +9,7 @@ from functools import partial
 from config import config
 from architecture import NLA, BitEncoder, LatentSolver, BitDecoder
 from data_gen import generate_batch
-from losses import compute_losses, eval_params_for_inference, get_optimizer, unwrap_schedule_free_state
+from losses import compute_losses, eval_params_for_inference, get_optimizer
 from bit_utils import bits_to_float
 
 class TrainState(train_state.TrainState):
@@ -83,12 +83,7 @@ def train_step(state, key):
     metrics = jax.lax.pmean(metrics, axis_name='batch')
     
     state = state.apply_gradients(grads=grads)
-    if getattr(config, "USE_SCHEDULE_FREE", True):
-        sf_state = unwrap_schedule_free_state(state.opt_state)
-        lr_log = jax.lax.pmean(sf_state.max_lr, axis_name="batch")
-        metrics = {**metrics, "train/lr": lr_log}
-    else:
-        metrics = {**metrics, "train/lr": jnp.array(config.LR, dtype=jnp.float32)}
+    metrics = {**metrics, "train/lr": jnp.array(config.LR, dtype=jnp.float32)}
     return state, metrics
 
 @partial(jax.pmap, axis_name='batch')

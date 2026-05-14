@@ -24,7 +24,7 @@ class Config:
 
     USE_SCHEDULE_FREE: bool = True
     SCHEDULE_FREE_VARIANT: str = "adamw"
-    SCHEDULE_FREE_WARMUP_STEPS: int = 2500
+    SCHEDULE_FREE_WARMUP_STEPS: int = 10000
     SCHEDULE_FREE_BETAS: Tuple[float, float] = (0.9, 0.999)
     SCHEDULE_FREE_R: float = 0.0
     SCHEDULE_FREE_WEIGHT_LR_POWER: float = 2.0

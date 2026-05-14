@@ -28,7 +28,7 @@ class Config:
 
     USE_SCHEDULE_FREE: bool = True
     SCHEDULE_FREE_VARIANT: str = "adamw"
-    SCHEDULE_FREE_WARMUP_STEPS: int = 2500
+    SCHEDULE_FREE_WARMUP_STEPS: int = 10000
     SCHEDULE_FREE_BETAS: Tuple[float, float] = (0.9, 0.999)
     SCHEDULE_FREE_R: float = 0.0
     SCHEDULE_FREE_WEIGHT_LR_POWER: float = 2.0
@@ -341,8 +341,9 @@ def tpu_mmd_imq_loss(z: jnp.ndarray, key: jax.Array) -> jnp.ndarray:
     return jnp.maximum(1e-6, mmd2)
 
 def compute_losses(logits_clean, logits_solver, target_bits, pred_z, enc_Target, swd_key):
+    logits_clean = logits_clean.astype(jnp.float32)
+    logits_solver = logits_solver.astype(jnp.float32)
     target_f32 = target_bits.astype(jnp.float32)
-    
     bce_clean = optax.sigmoid_binary_cross_entropy(logits_clean, target_f32)
     bce_solver = optax.sigmoid_binary_cross_entropy(logits_solver, target_f32)
     
@@ -456,7 +457,7 @@ from functools import partial
 from config import config
 from architecture import NLA, BitEncoder, LatentSolver, BitDecoder
 from data_gen import generate_batch
-from losses import compute_losses, eval_params_for_inference, get_optimizer, unwrap_schedule_free_state
+from losses import compute_losses, eval_params_for_inference, get_optimizer
 from bit_utils import bits_to_float
 
 class TrainState(train_state.TrainState):
@@ -530,12 +531,7 @@ def train_step(state, key):
     metrics = jax.lax.pmean(metrics, axis_name='batch')
     
     state = state.apply_gradients(grads=grads)
-    if getattr(config, "USE_SCHEDULE_FREE", True):
-        sf_state = unwrap_schedule_free_state(state.opt_state)
-        lr_log = jax.lax.pmean(sf_state.max_lr, axis_name="batch")
-        metrics = {**metrics, "train/lr": lr_log}
-    else:
-        metrics = {**metrics, "train/lr": jnp.array(config.LR, dtype=jnp.float32)}
+    metrics = {**metrics, "train/lr": jnp.array(config.LR, dtype=jnp.float32)}
     return state, metrics
 
 @partial(jax.pmap, axis_name='batch')
