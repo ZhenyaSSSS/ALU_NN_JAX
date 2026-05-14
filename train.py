@@ -1,6 +1,8 @@
+import os
 import jax
 import jax.numpy as jnp
 import flax
+import flax.serialization as serialization
 from flax.training import train_state
 import wandb
 from tqdm import tqdm
@@ -14,6 +16,32 @@ from bit_utils import bits_to_float
 
 class TrainState(train_state.TrainState):
     pass
+
+
+def load_wandb_key():
+    path = os.environ.get("WANDB_KEY_PATH")
+    if not path or not os.path.isfile(path):
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        key = f.read().strip()
+    if key:
+        os.environ["WANDB_API_KEY"] = key
+
+
+def save_checkpoint(state, step):
+    ckpt_dir = os.environ.get("ALU_CHECKPOINT_DIR", ".")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    ckpt_path = os.path.join(ckpt_dir, f"checkpoint_{step}.msgpack")
+    unreplicated_state = flax.jax_utils.unreplicate(state)
+    payload = {
+        "step": unreplicated_state.step,
+        "params": unreplicated_state.params,
+        "opt_state": unreplicated_state.opt_state,
+    }
+    with open(ckpt_path, "wb") as f:
+        f.write(serialization.to_bytes(payload))
+    print(f"Saved checkpoint to {ckpt_path}")
+
 
 def create_train_state(rng):
     model = NLA(config=config)
@@ -125,8 +153,13 @@ def eval_step(state, key):
     return metrics
 
 def main():
+    load_wandb_key()
     if config.WANDB_PROJECT and wandb.run is None:
-        wandb.init(project=config.WANDB_PROJECT, name=config.WANDB_RUN_NAME)
+        wandb.init(
+            project=config.WANDB_PROJECT,
+            name=config.WANDB_RUN_NAME,
+            mode=os.environ.get("WANDB_MODE", "online"),
+        )
         
     num_devices = jax.local_device_count()
     print(f"Running on {num_devices} devices.")
@@ -148,7 +181,8 @@ def main():
                 
                 if step % 50 == 0:
                     log_metrics = {k: float(v[0]) for k, v in metrics.items()}
-                    wandb.log(log_metrics, step=step)
+                    if wandb.run is not None:
+                        wandb.log(log_metrics, step=step)
                     pbar.set_postfix({"loss": log_metrics["train/loss"]})
                 
                 step += 1
@@ -157,8 +191,10 @@ def main():
         val_rngs = jax.random.split(rng, num_devices)
         val_metrics = eval_step(state, val_rngs)
         log_val_metrics = {k: float(v[0]) for k, v in val_metrics.items()}
-        wandb.log(log_val_metrics, step=step)
+        if wandb.run is not None:
+            wandb.log(log_val_metrics, step=step)
         print(f"Validation EMA: {log_val_metrics['val_ema']:.4f}")
+        save_checkpoint(state, step)
 
 if __name__ == "__main__":
     main()
