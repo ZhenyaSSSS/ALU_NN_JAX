@@ -18,7 +18,7 @@ class Config:
 
     BATCH_SIZE_PER_DEVICE: int = 65536
     
-    LR: float = 2.5e-3
+    LR: float = 5e-3
     LR_WARMUP_STEPS: int = 10000
     LR_COSINE_MIN_RATIO: float = 0.01
 
