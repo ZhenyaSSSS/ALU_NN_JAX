@@ -31,7 +31,7 @@ def tpu_mmd_imq_loss(z: jnp.ndarray, key: jax.Array) -> jnp.ndarray:
     mmd2 = k_mean(d_xx) + k_mean(d_yy) - 2.0 * k_mean(d_xy)
     return jnp.maximum(1e-6, mmd2)
 
-def compute_losses(logits_clean, logits_solver, target_bits, pred_z, enc_Target, swd_key):
+def compute_losses(logits_clean, logits_solver, target_bits, pred_z, enc_Target, swd_key_enc, swd_key_alu):
     logits_clean = logits_clean.astype(jnp.float32)
     logits_solver = logits_solver.astype(jnp.float32)
     target_f32 = target_bits.astype(jnp.float32)
@@ -46,12 +46,14 @@ def compute_losses(logits_clean, logits_solver, target_bits, pred_z, enc_Target,
     
     loss_latent_reg = jnp.mean(optax.huber_loss(pred_z, jax.lax.stop_gradient(enc_Target), delta=1.0))
     
-    loss_wae = tpu_mmd_imq_loss(enc_Target, swd_key)
+    loss_wae = tpu_mmd_imq_loss(enc_Target, swd_key_enc)
+    loss_wae_alu = tpu_mmd_imq_loss(pred_z, swd_key_alu)
     
     loss = (
         config.LAMBDAS["bce"] * loss_bce
         + config.LAMBDAS["latent_reg"] * loss_latent_reg
         + config.LAMBDAS["wae"] * loss_wae
+        + config.LAMBDAS.get("wae_alu", 0.0) * loss_wae_alu
     )
     
     metrics = {
@@ -62,6 +64,7 @@ def compute_losses(logits_clean, logits_solver, target_bits, pred_z, enc_Target,
         "train/bce_solver": loss_bce_solver,
         "train/latent_reg": loss_latent_reg,
         "train/wae_mmd": loss_wae,
+        "train/wae_alu_mmd": loss_wae_alu,
     }
     
     return loss, metrics

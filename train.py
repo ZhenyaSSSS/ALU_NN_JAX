@@ -81,8 +81,8 @@ def create_train_state(rng):
 def train_step(state, key):
     batch_size_per_device = config.BATCH_SIZE_PER_DEVICE
     
-    keys = jax.random.split(key, 4)
-    data_key, noise_key_a, noise_key_b, swd_key = keys[0], keys[1], keys[2], keys[3]
+    keys = jax.random.split(key, 5)
+    data_key, noise_key_a, noise_key_b, swd_key_enc, swd_key_alu = keys[0], keys[1], keys[2], keys[3], keys[4]
     
     bits_A, bits_B, op_ids, bits_Target = generate_batch(data_key, batch_size_per_device)
     
@@ -120,7 +120,7 @@ def train_step(state, key):
         
         loss, metrics = compute_losses(
             logits_clean, logits_solver, bits_Target, 
-            pred_z, enc_Target, swd_key
+            pred_z, enc_Target, swd_key_enc, swd_key_alu
         )
         return loss, metrics
         
