@@ -37,7 +37,7 @@ class ResMLPBlock(nn.Module):
         return residual + x
 
 
-_RematResMLPBlock = ResMLPBlock
+_RematResMLPBlock = nn.remat(ResMLPBlock)
 
 
 class BitEncoder(nn.Module):
