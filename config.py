@@ -8,10 +8,10 @@ class Config:
     WANDB_RUN_NAME: str | None = None
     WANDB_LOG_MODEL: bool = True
 
-    LATENT_DIM: int = 512
+    LATENT_DIM: int = 1024
     NUM_BITS: int = 32
-    NUM_LAYERS_ENC: int = 7
-    NUM_LAYERS_REFINE: int = 16
+    NUM_LAYERS_ENC: int = 12
+    NUM_LAYERS_REFINE: int = 24
     NUM_DECODER_BLOCKS: int = 2
 
     COMPUTE_DTYPE: jnp.dtype = jnp.bfloat16
