@@ -1,4 +1,5 @@
 import os
+import time
 import glob
 import jax
 import jax.numpy as jnp
@@ -190,6 +191,8 @@ def main():
     state = flax.jax_utils.replicate(state)
     
     step = 0
+    last_time = time.time()
+    
     for epoch in range(config.EPOCHS):
         with tqdm(total=config.STEPS_PER_EPOCH, desc=f"Epoch {epoch+1}/{config.EPOCHS}") as pbar:
             for _ in range(config.STEPS_PER_EPOCH):
@@ -200,6 +203,21 @@ def main():
                 
                 if step % 50 == 0:
                     log_metrics = {k: float(v[0]) for k, v in metrics.items()}
+                    
+                    try:
+                        mem_stats = jax.local_devices()[0].memory_stats()
+                        used_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                        limit_gb = mem_stats.get('bytes_limit', 16 * 1024**3) / (1024**3)
+                        log_metrics["sys/tpu_mem_used_gb"] = used_gb
+                        log_metrics["sys/tpu_mem_util_pct"] = (used_gb / limit_gb) * 100 if limit_gb > 0 else 0
+                    except Exception:
+                        pass
+                        
+                    current_time = time.time()
+                    elapsed = current_time - last_time
+                    log_metrics["sys/steps_per_sec"] = 50 / elapsed if elapsed > 0 else 0
+                    last_time = current_time
+                    
                     if wandb.run is not None:
                         wandb.log(log_metrics, step=step)
                     pbar.set_postfix({"loss": log_metrics["train/loss"]})
