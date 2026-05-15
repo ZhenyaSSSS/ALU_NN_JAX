@@ -16,9 +16,9 @@ class Config:
 
     COMPUTE_DTYPE: jnp.dtype = jnp.bfloat16
 
-    BATCH_SIZE_PER_DEVICE: int = 131072
+    BATCH_SIZE_PER_DEVICE: int = 65536
     
-    LR: float = 1e-2
+    LR: float = 5e-3
     LR_WARMUP_STEPS: int = 10000
     LR_COSINE_MIN_RATIO: float = 0.01
 
