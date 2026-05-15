@@ -207,9 +207,11 @@ def main():
                     try:
                         mem_stats = jax.local_devices()[0].memory_stats()
                         used_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                        peak_gb = mem_stats.get('peak_bytes_in_use', mem_stats.get('bytes_in_use', 0)) / (1024**3)
                         limit_gb = mem_stats.get('bytes_limit', 16 * 1024**3) / (1024**3)
                         log_metrics["sys/tpu_mem_used_gb"] = used_gb
-                        log_metrics["sys/tpu_mem_util_pct"] = (used_gb / limit_gb) * 100 if limit_gb > 0 else 0
+                        log_metrics["sys/tpu_mem_peak_gb"] = peak_gb
+                        log_metrics["sys/tpu_mem_util_pct"] = (peak_gb / limit_gb) * 100 if limit_gb > 0 else 0
                     except Exception:
                         pass
                         
