@@ -43,7 +43,7 @@ class Config:
     LAMBDAS: Dict[str, float] = {
         "bce": 1.0, 
         "wae": 0.1, 
-        "latent_reg": 1.0
+        "latent_reg": 0.0
     }
 
     QUIET_NAN: int = 2143289344

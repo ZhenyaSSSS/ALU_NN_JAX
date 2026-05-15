@@ -1,4 +1,5 @@
 import os
+import glob
 import jax
 import jax.numpy as jnp
 import flax
@@ -28,7 +29,7 @@ def load_wandb_key():
         os.environ["WANDB_API_KEY"] = key
 
 
-def save_checkpoint(state, step):
+def save_checkpoint(state, step, max_keep=3):
     ckpt_dir = os.environ.get("ALU_CHECKPOINT_DIR", ".")
     os.makedirs(ckpt_dir, exist_ok=True)
     ckpt_path = os.path.join(ckpt_dir, f"checkpoint_{step}.msgpack")
@@ -41,6 +42,22 @@ def save_checkpoint(state, step):
     with open(ckpt_path, "wb") as f:
         f.write(serialization.to_bytes(payload))
     print(f"Saved checkpoint to {ckpt_path}")
+    
+    all_ckpts = glob.glob(os.path.join(ckpt_dir, "checkpoint_*.msgpack"))
+    def extract_step(p):
+        try:
+            return int(os.path.basename(p).split("_")[1].split(".")[0])
+        except:
+            return -1
+    all_ckpts.sort(key=extract_step)
+    
+    if len(all_ckpts) > max_keep:
+        for p in all_ckpts[:-max_keep]:
+            try:
+                os.remove(p)
+                print(f"Deleted old checkpoint {p}")
+            except Exception as e:
+                print(f"Failed to delete {p}: {e}")
 
 
 def create_train_state(rng):
@@ -96,7 +113,9 @@ def train_step(state, key):
         enc_B_noisy = enc_B + noise_b
         pred_z = solver.apply({"params": params["solver"]}, enc_A_noisy, enc_B_noisy, op_ids)
         logits_clean = decoder.apply({"params": params["decoder"]}, enc_Target)
-        logits_solver = decoder.apply({"params": params["decoder"]}, pred_z)
+        
+        frozen_decoder_params = jax.tree_util.tree_map(jax.lax.stop_gradient, params["decoder"])
+        logits_solver = decoder.apply({"params": frozen_decoder_params}, pred_z)
         
         loss, metrics = compute_losses(
             logits_clean, logits_solver, bits_Target, 
